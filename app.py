@@ -55,7 +55,7 @@ if 'email' not in st.session_state:
 if 'product' not in st.session_state:
     st.session_state.product = ""
 if 'stage' not in st.session_state:
-    st.session_state.stage = ""
+    st.session_state.stage = 1
 if 'name' not in st.session_state:
     st.session_state.name = ""
 if 'target' not in st.session_state:
@@ -138,29 +138,28 @@ if 'page' not in st.session_state:
 def page1():
     st.title("Anmeldung")
 
-    email = st.text_input("Email", autocomplete="off")
-    password = st.text_input("Passwort", type="password")
-    col1, col2 = st.columns(2)
-    with col1: login_button = st.button("Melden Sie sich an.")
-    #with col2: 
-    st.subheader("**Neu hier?**")
-    st.write("Schön, dass Sie den Weg zu uns gefunden haben!")
-    signup_button = st.button("Registrieren Sie sich.")
-
-    # Registrierung
-    if signup_button:
-        st.session_state.page = "signup_page"
-
-    # Anmeldung
-    if login_button:
+    def clicklogin():
         try:
             user = auth.get_user_by_email(email)
             st.success(f"Successfully logged in as {user.email}")
-            st.session_state.email=email
             st.session_state.page = "page2"
         except auth.UserNotFoundError:
             st.error("User not found or incorrect credentials")
 
+    email = st.text_input("Email", autocomplete="off")
+    password = st.text_input("Passwort", type="password")
+    col1, col2 = st.columns(2)
+    with col1: login_button = st.button("Melden Sie sich an.", on_click=clicklogin)
+    #with col2: 
+    st.subheader("**Neu hier?**")
+    st.write("Schön, dass Sie den Weg zu uns gefunden haben!")
+    
+    # Registrierung
+    def clickregister():
+        st.session_state.page = "signup_page"
+
+    # Anmeldung
+    signup_button = st.button("Registrieren Sie sich.", on_click=clickregister)
 # Function to sign up a user with email and password
 def sign_up_with_email_password(email, password):
     try:
@@ -180,12 +179,12 @@ def signup_page():
     password = st.text_input("Passwort", type="password", placeholder="Wählen Sie mindestens sechs Zeichen für Ihr Passwort.")
     confirm_password = st.text_input("Bestätigen Sie Ihr Passwort", type="password")
 
-    col1, col2 = st.columns([0.15,0.85])
-    with col1: but_su = st.button("Sign Up")
-    with col2: but_zu = st.button("Zurück")
+    # zurück button
+    def clickback():
+        st.session_state.page = "page1"
 
     # Sign-up button
-    if but_su:
+    def clicksignup():
         # Check if passwords match
         if password != confirm_password:
             st.error("Passwörter stimmen nicht überein.")
@@ -197,7 +196,10 @@ def signup_page():
                 # Additional logic after successful sign-up
                 pass
 
-    if but_zu: st.session_state.page = "page1"
+    col1, col2 = st.columns([0.15,0.85])
+    with col1: but_su = st.button("Sign Up", on_click=clicksignup)
+    with col2: but_zu = st.button("Zurück", on_click=clickback)
+
          
 # Page 2 content
 def page2():
@@ -295,7 +297,9 @@ def page2():
 
                 with placeholder3.container():
                     st.write("**Erzählen Sie mir ein bisschen mehr über Ihre Idee:**")
-                    name_input = st.chat_input("Haben Sie schon einen Namen im Kopf?")
+                    st.write("Haben Sie schon einen Namen im Kopf?")
+                    name_input = st.chat_input("Der Name für Ihr Vorhaben lautet...")
+
                     notsure3 = st.checkbox("Nein, noch nicht.", key="box3")
 
                 if notsure3:
@@ -317,7 +321,7 @@ def page2():
                             [
                                 "Okay, "+prompt1+", damit können wir arbeiten.",
                                 prompt1+", das klingt nach einem guten Namen.",
-                                "Sehr kreativ -  " +prompt1+", wie sind Sie da überhaupt drauf gekommen?",
+                                "Sehr kreativ -  " +prompt1+", das klingt gut.",
                             ]
                         )
                         for word in response.split():
@@ -361,20 +365,24 @@ def page2():
                     st.session_state.age_values.insert(1,values[1])
                     #det_info['target_group']= str(st.session_state.age_values[0]) + "-" + str(st.session_state.age_values[1])
 
-                    notsure4 = st.checkbox("Ich bin mir noch nicht sicher.", key="box4")
+                    placeholder6a = st.empty()
+                    with placeholder6a.container():  
+                        notsure4 = st.checkbox("Ich bin mir noch nicht sicher.", key="box4")
+    
                         
                     if notsure4:
                             placeholder6.empty()
+                            placeholder6a.empty()
                             st.session_state.age_values.clear()
                             st.session_state.age_values.insert(0,"Keine Angabe.")
                             #det_info['target_group']='Keine Angabe.'
                         
                     st.subheader("Momentaner Entwicklungsstand")
-                    st.write("**Wo in der Entwicklung befinden Sie sich gerade?**")
                                
                 
                     placeholder5 = st.empty()
                     with placeholder5.container():
+                        st.write("**Wo in der Entwicklung befinden Sie sich gerade?**")
                         # Labels for the slider
                         col1, col2, col3, col4, col5, col6 = st.columns(6)
                         with col1: st.write("Ideation")
@@ -384,7 +392,10 @@ def page2():
                         with col5: st.write("Validation & Testing")
                         with col6: st.write("Commercialization")
                                 
-                        st.session_state.stage = st.slider(
+                        def clickstage():
+                            st.session_state.stage = stageslider
+                        
+                        stageslider = st.slider(
                             label="Wir sind gerade in...",
                             min_value=1,
                             max_value=6,
@@ -397,7 +408,8 @@ def page2():
                                 "4) **Initial Design**: Die Projektbeteiligten arbeiten zusammen, um ein Mockup des Produkts basierend auf dem Prototyp des Minimum Viable Product (MVP) zu erstellen. Das Design sollte mit der Zielgruppe im Hinterkopf erstellt werden und die wichtigsten Funktionen Ihres Produkts ergänzen.\n"
                                 "5) **Validation & Testing**: Um mit einem neuen Produkt live zu gehen, müssen Sie es zuerst validieren und testen. Dies stellt sicher, dass jeder Teil des Produkts - von der Entwicklung bis zum Marketing - effektiv funktioniert, bevor es der Öffentlichkeit zugänglich gemacht wird.\n"
                                 "6) **Commercialization**: Nun ist es an der Zeit, Ihr Konzept zu kommerzialisieren, was den Start Ihres Produkts und die Implementierung auf Ihrer Website umfasst."
-                            )
+                                    ),
+                            on_change=clickstage
                         )
         
                         notsure5 = st.checkbox("Keine Angabe.", key="box5")
@@ -406,28 +418,30 @@ def page2():
                             st.session_state.stage = None
                             placeholder5.empty()
                             placeholder6.empty()
+                            placeholder6a.empty()
                             #det_info['dev_status']='Keine Angabe'
 
                     # Show which phase they chose
-                    with st.chat_message("ai", avatar=":material/psychology:"):
-                                if st.session_state.stage == 1: 
-                                    st.write("Super, Sie sind also gerade in der **Ideation** Phase.")
-                                    #det_info['dev_status']="Ideation"
-                                if st.session_state.stage == 2: 
-                                    st.write("Super, Sie sind also gerade in der **Product Definition** Phase.")
-                                    #det_info['dev_status']="Product Definition"
-                                if st.session_state.stage == 3: 
-                                    st.write("Super, Sie sind also gerade in der **Prototyping** Phase.")
-                                    #det_info['dev_status']="Prototyping"
-                                if st.session_state.stage == 4: 
-                                    st.write("Super, Sie sind also gerade in der **Initial Design** Phase.")
-                                    #det_info['dev_status']="Initial Design"
-                                if st.session_state.stage == 5: 
-                                    st.write("Super, Sie sind also gerade in der **Validation & Testing** Phase.")
-                                    #det_info['dev_status']="Validation & Testing"
-                                if st.session_state.stage == 6: 
-                                    st.write("Super, Sie sind also gerade in der **Commercialization** Phase.")
-                                    #det_info['dev_status']="Commercialization"
+                    if st.session_state.stage != None:
+                        with st.chat_message("ai", avatar=":material/psychology:"):
+                                    if st.session_state.stage == 1: 
+                                        st.write("Super, Sie sind also gerade in der **Ideation** Phase.")
+                                        #det_info['dev_status']="Ideation"
+                                    if st.session_state.stage == 2: 
+                                        st.write("Super, Sie sind also gerade in der **Product Definition** Phase.")
+                                        #det_info['dev_status']="Product Definition"
+                                    if st.session_state.stage == 3: 
+                                        st.write("Super, Sie sind also gerade in der **Prototyping** Phase.")
+                                        #det_info['dev_status']="Prototyping"
+                                    if st.session_state.stage == 4: 
+                                        st.write("Super, Sie sind also gerade in der **Initial Design** Phase.")
+                                        #det_info['dev_status']="Initial Design"
+                                    if st.session_state.stage == 5: 
+                                        st.write("Super, Sie sind also gerade in der **Validation & Testing** Phase.")
+                                        #det_info['dev_status']="Validation & Testing"
+                                    if st.session_state.stage == 6: 
+                                        st.write("Super, Sie sind also gerade in der **Commercialization** Phase.")
+                                        #det_info['dev_status']="Commercialization"
 
                     placeholder7 = st.empty()
                     with placeholder7.container():
@@ -443,17 +457,21 @@ def page2():
                         st.subheader("Nun zu den Interviews:") 
                         st.write("Wie viele Fragen möchten Sie Ihren Befragten stellen?")
                         # Auswahl der Fragenanzahl
-                        st.session_state.numberquestions = st.slider(
+                        def clickslider():
+                            st.session_state.numberquestions = numberquestions
+
+                        numberquestions = st.slider(
                             label="**Anzahl Fragen**", 
                             min_value=1,
                             max_value=15,
-                            value=st.session_state.numberquestions,
+                            value=5,
                             step=1,
                             key="anzahlfragen",
-                            help=("In der Wissenschaft werden zwischen 5 und 10 Fragen empfohlen."))
+                            help=("In der Wissenschaft werden zwischen 5 und 10 Fragen empfohlen."),
+                            on_change=clickslider)
                         #det_info['num_ques']=st.session_state.numberquestions
                         
-                        dauer = str(st.session_state.numberquestions*6)
+                        dauer = str(numberquestions*6)
                         # man kann pro Frage mit 6 min rechnen: https://sozmethode.hypotheses.org/132
                         st.write("Damit wird Ihr Interview in etwa "+ dauer + " Minuten dauern.")
                         
@@ -471,7 +489,7 @@ def page2():
                         st.session_state.selected_language = st.selectbox(
                             "Wählen Sie eine Sprache",
                             languages,
-                            index = None
+                            index = 3
                         )
                         #det_info['lang_ques']=st.session_state.selected_language
                         # Zeige die ausgewählte Sprache an
@@ -480,9 +498,11 @@ def page2():
                         if st.session_state.selected_language != "":
                             st.subheader("Wir danken Ihnen für die Informationen. Überprüfen Sie nun die von Ihnen angegebenen Daten auf ihre Korrektheit und senden Sie sie ab!")
                             # Button to switch to Prüfpage 
-                            but = st.button("Überprüfen Sie Ihre Angaben.", key="pruefung")
-                            if but:
+                            def clickcheck():
                                 st.session_state.page = "page3"
+
+                            but = st.button("Überprüfen Sie Ihre Angaben.", key="pruefung", on_click=clickcheck)
+                                
                                 
                                 
                 
@@ -536,24 +556,28 @@ def page3():
                 col1, col2 = st.columns([0.3,0.7])
                 
                 with col1:
-                    but_los = st.button("Weiter gehts!", key="aufgehts")
-                    if but_los:
+                     def clickgo():
                         st.session_state.page = "page4"
                         stage_conv(st.session_state.stage)
                         if "det_info" not in st.session_state:
+                            if st.session_state.age_values[0] != "Keine Angabe.":
+                                target_group_helper = str(st.session_state.age_values[0])+"-"+str(st.session_state.age_values[1])
+                            elif st.session_state.age_values[0] == "Keine Angabe.":
+                                target_group_helper = "Keine Angabe."
+
                             st.session_state.det_info={ 'product_name':st.session_state.name,
                                                         'product_type':st.session_state.service_or_product,
-                                                        'target_group':str(st.session_state.age_values[0])+"-"+str(st.session_state.age_values[1]),
+                                                        'target_group':target_group_helper,
                                                         'dev_status':st.session_state.stage,
                                                         'num_ques':st.session_state.numberquestions,
                                                         'lang_ques':st.session_state.selected_language
                             }
-                        
-
+                     but_los = st.button("Weiter gehts!", key="aufgehts", on_click=clickgo)
+                
                 with col2: 
-                    but_edit = st.button("Ich möchte meine Daten noch einmal anpassen.", key="edit")
-                    if but_edit:
+                    def clickedit():
                         st.session_state.page = "editinfos"
+                    but_edit = st.button("Ich möchte meine Daten noch einmal anpassen.", key="edit", on_click=clickedit)
 
 
 def editinfos():
@@ -564,7 +588,17 @@ def editinfos():
     # Development Stage
     st.write("**Ihr momentaner Entwicklungsstand:**")
     # Labels for the slider
-    
+    # re convert stages in case you click "edit" twice
+    stage_helper = 1
+
+    if(st.session_state.stage =="Ideation"): stage_helper ==1
+    elif(st.session_state.stage == "Product Definition"): stage_helper ==2
+    elif(st.session_state.stage == "Prototyping"): stage_helper ==3
+    elif(st.session_state.stage == "Initial Design"): stage_helper ==4
+    elif(st.session_state.stage == "Validation & Testing"): stage_helper == 5
+    elif(st.session_state.stage == "Commercialization"): stage_helper == 6
+    elif(st.session_state.stage == "Not specified"): stage_helper == 0 # keine Angabe
+
     beschriftungslider = st.container()
     with beschriftungslider:
         col1, col2, col3, col4, col5, col6 = st.columns(6)
@@ -575,7 +609,15 @@ def editinfos():
         with col5: st.write("Validation & Testing")
         with col6: st.write("Commercialization")
                 
-    st.session_state.stage = st.slider(label="Wir sind gerade in...", min_value=1, max_value=6, value=st.session_state.stage, key="edit_current_stage", step=1, help="1) Ideation \n 2) Product definition\n 3) Prototyping\n 4) Initial design\n 5) Validation and testing\n 6) Commercialization")
+    def clickstage():
+        st.session_state.stage = stage
+        #currentstage = st.session_state.stage
+    
+    #currentstage = st.session_state.stage
+
+    if stage_helper != 0:
+        stage = st.slider(label="Wir sind gerade in...", min_value=1, max_value=6, value=stage_helper, key="edit_current_stage", step=1, help="1) Ideation \n 2) Product definition\n 3) Prototyping\n 4) Initial design\n 5) Validation and testing\n 6) Commercialization", on_change=clickstage)
+
 
     indexsop = 0
     if st.session_state.service_or_product == "Produkt": 
@@ -602,24 +644,32 @@ def editinfos():
             st.session_state.age_values[1] = st.text_area("**und**", value=str(st.session_state.age_values[1]), height=20)
 
     else:
-        st.write("Sie haben keine Angaben zur Altersttruktur Ihrer Zielgruppe gemacht. Möchten Sie dies ändern?")
-        change = st.checkbox("Ja.")
-        if change: 
+        st.write("Sie haben keine Angaben zur Alterstruktur Ihrer Zielgruppe gemacht. Möchten Sie dies ändern?")
+        
+        def clickchange():
             col3, col4 = st.columns(2)
+            st.session_state.age_values[0] = 25
+            st.session_state.age_values.insert(1,75)
             with col3: 
-                st.session_state.age_values[0] = st.text_area("**Ihre Zielgruppe ist zwischen**", value=str(st.session_state.age_values[0]), height=20)
+                st.session_state.age_values[0] = st.text_area("**Ihre Zielgruppe ist zwischen**", value=str(st.session_state.age_values[0]), height=20, key="changeage")
             with col4:
-                st.session_state.age_values[1] = st.text_area("**und**", value=str(st.session_state.age_values[1]), height=20)
-
+                st.session_state.age_values[1] = st.text_area("**und**", value=str(st.session_state.age_values[1]), height=20, key="changeage2")
+        change = st.checkbox("Ja.", on_change=clickchange)
         # Auswahl der Fragen
-    st.session_state.numberquestions = st.slider(
+        def clickeditnumberquestions():
+            st.session_state.numberquestions = numberquestions
+    
+        numberquestions = st.slider(
+
                             label="**Anzahl Fragen**", 
                             min_value=1,
                             max_value=15,
                             value=st.session_state.numberquestions,
                             step=1,
                             key="anzahlfragen",
-                            help=("In der Wissenschaft werden zwischen 5 und 10 Fragen empfohlen."))
+                            help=("In der Wissenschaft werden zwischen 5 und 10 Fragen empfohlen."),
+                            on_change=clickeditnumberquestions)
+
                         
     dauer = str(st.session_state.numberquestions*6)
         # man kann pro Frage mit 6 min rechnen: https://sozmethode.hypotheses.org/132
@@ -636,25 +686,33 @@ def editinfos():
                         ])
 
         # Erstelle eine Auswahlbox
-    st.session_state.selected_language = st.selectbox(
-                            "Wählen Sie eine Sprache",
+    def clicklanguage():
+        st.session_state.selected_language = language
+
+    language = st.selectbox(
+                            "Die Interviews werden durchgeführt auf:",
                             languages,
-                            index=languages.index(st.session_state.selected_language) if st.session_state.selected_language in languages else 0
+                            index=languages.index(st.session_state.selected_language) if st.session_state.selected_language in languages else 0,
+                            on_change=clicklanguage
+
                         )
 
-    submitinfos = st.button("Weiter gehts!")
-    if submitinfos:
+    def clicksubmit():
         st.session_state.page = "page3"
         stage_conv(st.session_state.stage)
         if "det_info" not in st.session_state:
+            if st.session_state.age_values[0] != "Keine Angabe.":
+                target_group_helper = str(st.session_state.age_values[0])+"-"+str(st.session_state.age_values[1])
+            elif st.session_state.age_values[0] == "Keine Angabe.":
+                target_group_helper = "Keine Angabe."
             st.session_state.det_info={ 'product_name':st.session_state.name,
                                         'product_type':st.session_state.service_or_product,
-                                        'target_group':str(st.session_state.age_values[0])+"-"+str(st.session_state.age_values[1]),
+                                        'target_group':target_group_helper,
                                         'dev_status':st.session_state.stage,
                                         'num_ques':st.session_state.numberquestions,
                                         'lang_ques':st.session_state.selected_language
                                     }
-            
+    submitinfos = st.button("Weiter gehts!", on_click = clicksubmit)           
         
 def load_retriever():
     index_name = "llm"
@@ -733,7 +791,7 @@ def create_prompt_template(det_info):
     return prompt_template
 
 def generate_link():
-     base_url="https://ragapplication-bkggtappynnyyzvyshq9mf7.streamlit.app/"
+     base_url="http://localhost:8501"
      hidden_link=f"{base_url}?token={st.session_state['chat_id']}"
      return hidden_link
 
