@@ -13,6 +13,7 @@ from langchain_community.chat_message_histories import StreamlitChatMessageHisto
 from google.cloud import firestore
 from google.oauth2 import service_account
 from database import load_summary_from_db, load_info_from_db, save_interview_to_db, load_email_from_db
+from email_sending import send_mail
 import streamlit as st
 import uuid
 import os
