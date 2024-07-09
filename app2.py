@@ -13,7 +13,6 @@ from langchain_community.chat_message_histories import StreamlitChatMessageHisto
 from google.cloud import firestore
 from google.oauth2 import service_account
 from database import load_summary_from_db, load_info_from_db, save_interview_to_db, load_email_from_db
-from email_sending import send_mail
 import streamlit as st
 import uuid
 import os
@@ -26,8 +25,6 @@ LANGCHAIN_ENDPOINT=os.environ['LANGCHAIN_ENDPOINT']
 LANGCHAIN_API_KEY=os.environ['LANGCHAIN_API_KEY']
 LANGCHAIN_PROJECT=os.environ['LANGCHAIN_PROJECT']
 OPENAI_API_KEY=os.environ['OPENAI_API_KEY']
-EMAIL_HOST=os.environ['EMAIL_HOST']
-PASSKEY_HOST=os.environ['PASSKEY_HOST']
 
 key_dict = json.loads(st.secrets["textkey"])
 creds = service_account.Credentials.from_service_account_info(key_dict)
@@ -70,18 +67,31 @@ def load_retriever():
 
 def create_prompt_template(det_product_info,product_info):
     
-    #product_info=load_summary_from_db(c, st.session_state.chat_id)
+    prompt_template="""
+    Task:
+    As a helpful AI interview bot, your task is to conduct a user interview with a potential user about a product/service. 
+    You are a professional for user-centred development and user expirience interviews. Your goal is to generate new knowledge about users, their experiences, needs and weaknesses.
 
-    prompt_template="""As a helpful AI interview bot, your task is to conduct a user interview with a potential user about a product that does not yet exist. 
-You are a professional for user-centred development and user expirience interviews. Your goal is to generate new knowledge about users, their experiences, needs and weaknesses. 
-As a context for your interview, you have a summary of an interview that was conducted with the product owner. Here you will find all the relevant information about the product that you should use to create the questions:\n"""+product_info+"\n"+ """Use your common knowledge and also use the following questions from a questionnaire and place suitable questions in the right context to obtain precise information: 
-{context}.\n
-"""+ "Here is some essential information about the interview and the product that you should definitely use:\n"+det_product_info+"\n"+"""
-If a question is answered very briefly and incompletely, ask a follow-up question. Your questions should not be asked all at once but alternate with the user's answers.
-For answers that have nothing to do with the question asked, reply in an appropriate way to the context and try to re-enter the interview with a new question.
-Make sure that you do not ask any questions twice.
-Once all the questions have been asked, ask the product owner if they would like to add any further information and respond to their answer.
-At the end also point out that the interview can be concluded by entering "exit" and a summary of the interview will then be shown."""
+    Instructions:
+    You talk to a potential customer of the product/service.The information you collect will later be used for user-centred development of the product/service.
+    Be careful not to ask questions twice or repeat yourself.
+    Make the interview interactive and add meaningful questions, for that use your common knowledge and extend it with the given questions from a questionaire.
+
+    Useful questions:
+    {context}
+
+    Procedure:
+    If there is no suitable question, ask your own question. If an answer is very short or incomplete, ask a follow-up question. 
+    The questions should not be asked all at once, but alternate with the user's answers.
+    For answers that have nothing to do with the question asked, try to re-enter the interview with a new question. 
+    Once all the questions have been asked, ask the product owner if they would like to add any further information and respond to their answer.
+    At the end also point out that the interview can be concluded by entering "exit".
+    If the user does not enter any further information, answer any further input with "Please type "exit" to finish the interview.".
+    Only create a summary if exit has been entered by the user.
+
+    Interview context:
+    As a context for your interview, you have a summary of an interview that was conducted with the product owner. Here you will find all the relevant information about the product that you should use to create the questions:\n
+    """+product_info+"\n"+"Here is some essential information about the interview and the product that you should definitely use:\n"+det_product_info+"\n"
 
     return prompt_template
 
@@ -92,14 +102,13 @@ def split_response(response):
 
 
 def interview():
-    email= load_email_from_db(db,st.session_state.chat_id)
+    #email= load_email_from_db(c,st.session_state.chat_id)
     retriever = load_retriever()
     msgs = StreamlitChatMessageHistory(key="langchain_messages")
 
     model = ChatOpenAI(model_name="gpt-4o", temperature=0, streaming=True)
-    contextualize_q_system_prompt="""Given a chat history and the latest user responses and questions \
-    which might reference context in the chat history, formulate a short summary of the given information \
-    which can be understood without the chat history."""
+    contextualize_q_system_prompt="""Given a chat history and the latest user response
+    which might reference context in the chat history, formulate a possible follow-up question that can be understood without the chat history."""
     contextualize_q_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", contextualize_q_system_prompt),
@@ -157,7 +166,7 @@ def interview():
             sum_prompt="Write a detailed summary over the interview."
             st.session_state.sum_prompt=conversational_rag_chain.invoke({"input": sum_prompt}, config)['answer']
             save_interview_to_db(db, st.session_state['chat_id'], st.session_state['client_id'], st.session_state['sum_prompt'])
-            send_mail(EMAIL_HOST,PASSKEY_HOST,st.session_state["sum_prompt"], email)
+            #send_mail(st.session_state["sum_prompt"], email)
             st.rerun()
 
             
