@@ -791,7 +791,7 @@ def create_prompt_template(det_info):
     return prompt_template
 
 def generate_link():
-     base_url="http://localhost:8501"
+     base_url="https://ragapplication-bkggtappynnyyzvyshq9mf7.streamlit.app/"
      hidden_link=f"{base_url}?token={st.session_state['chat_id']}"
      return hidden_link
 
