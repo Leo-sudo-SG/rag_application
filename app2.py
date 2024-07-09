@@ -26,6 +26,8 @@ LANGCHAIN_ENDPOINT=os.environ['LANGCHAIN_ENDPOINT']
 LANGCHAIN_API_KEY=os.environ['LANGCHAIN_API_KEY']
 LANGCHAIN_PROJECT=os.environ['LANGCHAIN_PROJECT']
 OPENAI_API_KEY=os.environ['OPENAI_API_KEY']
+EMAIL_HOST=os.environ['EMAIL_HOST']
+PASSKEY_HOST=os.environ['PASSKEY_HOST']
 
 key_dict = json.loads(st.secrets["textkey"])
 creds = service_account.Credentials.from_service_account_info(key_dict)
@@ -90,7 +92,7 @@ def split_response(response):
 
 
 def interview():
-    #email= load_email_from_db(c,st.session_state.chat_id)
+    email= load_email_from_db(db,st.session_state.chat_id)
     retriever = load_retriever()
     msgs = StreamlitChatMessageHistory(key="langchain_messages")
 
@@ -155,7 +157,7 @@ def interview():
             sum_prompt="Write a detailed summary over the interview."
             st.session_state.sum_prompt=conversational_rag_chain.invoke({"input": sum_prompt}, config)['answer']
             save_interview_to_db(db, st.session_state['chat_id'], st.session_state['client_id'], st.session_state['sum_prompt'])
-            #send_mail(st.session_state["sum_prompt"], email)
+            send_mail(EMAIL_HOST,PASSKEY_HOST,st.session_state["sum_prompt"], email)
             st.rerun()
 
             
