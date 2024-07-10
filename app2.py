@@ -147,7 +147,7 @@ def interview():
     )
 
     if len(msgs.messages)==0:
-        first_prompt="Please welcome me and give me brief instructions on what to do and what to expect. Also give me a brief description of the product. "
+        first_prompt="Write a welcome message and give brief instructions on what to do and what to expect. Also give a brief description of the product."
         config = {"configurable": {"session_id": st.session_state['client_id']}}
         #st.chat_message("ai").write(conversational_rag_chain.invoke({"input": first_prompt}, config)['answer'])
         response = conversational_rag_chain.invoke({"input": first_prompt}, config)['answer']
