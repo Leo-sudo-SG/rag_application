@@ -12,7 +12,7 @@ def send_mail(msg,mail_sender,pw_sender, email_recipient):
     s.login(mail_sender, pw_sender)
     msg= MIMEText(msg)
     msg['Subject'] = 'Your Product Feedback'
-    msg['From'] = 'fragenfabrik@web.de'
+    msg['From'] = mail_sender
     msg['To'] = email_recipient
     s.send_message(msg)
     s.quit()

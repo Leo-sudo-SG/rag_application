@@ -52,7 +52,7 @@ def summarize(token):
     Based on this list of docs, please identify the main themes 
     Helpful Answer:"""
     map_prompt = PromptTemplate.from_template(map_template)
-    map_chain = LLMChain(llm=llm, prompt=map_prompt)
+    map_chain = LLMChain(llm=llm,prompt=map_prompt)
 
     # Reduce
     reduce_template = """The following is set of summaries:
@@ -62,7 +62,7 @@ def summarize(token):
     reduce_prompt = PromptTemplate.from_template(reduce_template)
 
     # Run chain
-    reduce_chain = LLMChain(llm=llm, prompt=reduce_prompt)
+    reduce_chain = LLMChain(llm=llm,prompt=reduce_prompt)
 
     # Takes a list of documents, combines them into a single string, and passes this to an LLMChain
     combine_documents_chain = StuffDocumentsChain(
@@ -100,10 +100,11 @@ def summarize(token):
 
     result = map_reduce_chain.invoke(docs)["output_text"]
     try:
-        send_mail(result,load_email_from_db(db,token))
-        st.success('Email sent successfully!')
+        send_mail(result,MAIL_SENDER,PASSWORD_SENDER,load_email_from_db(db,token))
+        st.success("Email erfolgreich versendet!")
     except:
-        st.error('Es ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.')
+        st.error("Es ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.")
+        
 
 def validate_url(url):
     base_url = 'https://ragapplication-bkggtappynnyyzvyshq9mf7.streamlit.app/'
