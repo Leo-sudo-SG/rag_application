@@ -143,6 +143,7 @@ def page1():
             user = auth.get_user_by_email(email)
             st.success(f"Successfully logged in as {user.email}")
             st.session_state.page = "page2"
+            st.session_state.email=email
         except auth.UserNotFoundError:
             st.error("User not found or incorrect credentials")
 
@@ -191,7 +192,7 @@ def signup_page():
         else:
             # Call sign_up_with_email_password function
             user = sign_up_with_email_password(email, password)
-            st.session_state.email=email
+            #st.session_state.email=email
             if user:
                 # Additional logic after successful sign-up
                 pass
