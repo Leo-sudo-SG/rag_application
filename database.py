@@ -28,7 +28,7 @@ def save_chat_to_db(db,chat_id,chat):
 	})
 
 def save_interview_to_db(db,chat_id,client_id,interview):
-    doc_ref = db.collection("interviews").document(client_id)
+    doc_ref = db.collection("interviews").document(chat_id).collection("individual_interviews").document(client_id)
     doc_ref.set({
 	    "token_kmu": chat_id,
         "token_customer": client_id,
@@ -52,3 +52,11 @@ def load_email_from_db(db,chat_id):
     doc_ref = db.collection("users").document(chat_id)
     doc = doc_ref.get().to_dict()
     return doc["email"]
+
+def fetch_combined_summary(db, chat_id):
+    interviews_ref = db.collection('interviews').document(chat_id).collection("individual_interviews")
+    results = interviews_ref.stream()
+
+    combined_summary = ' '.join([doc.to_dict().get('interview', '') for doc in results])
+
+    return combined_summary
