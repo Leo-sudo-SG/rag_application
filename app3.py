@@ -52,7 +52,7 @@ def summarize(token):
     Based on this list of docs, please identify the main themes 
     Helpful Answer:"""
     map_prompt = PromptTemplate.from_template(map_template)
-    map_chain = map_prompt | llm | StrOutputParser()
+    map_chain = LLMChain(llm=llm, prompt=map_prompt)
 
     # Reduce
     reduce_template = """The following is set of summaries:
@@ -62,7 +62,7 @@ def summarize(token):
     reduce_prompt = PromptTemplate.from_template(reduce_template)
 
     # Run chain
-    reduce_chain = reduce_prompt | llm | StrOutputParser()
+    reduce_chain = LLMChain(llm=llm, prompt=reduce_prompt)
 
     # Takes a list of documents, combines them into a single string, and passes this to an LLMChain
     combine_documents_chain = StuffDocumentsChain(
