@@ -148,8 +148,8 @@ def page1():
             query_params = parse_qs(parsed_url.query)
             token = query_params.get('token', [None])[0]
             summarize(token)
-            st.session_state.page="page2"
-            st.rerun()
+            #st.session_state.page="page2"
+            #st.rerun()
         else:
             st.error('Fehlerhafter Link. Bitte überprüfen Sie Ihre Eingabe.')
     
