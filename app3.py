@@ -144,6 +144,7 @@ def validate_url(url):
 
 
 def page1():
+    st.markdown("Diese Anwendung fasst alle geführten Interviews zu Ihrem Produkt zusammen und sendet Ihnen die Zusammenfassung an die bei der Anmeldung angegebene E-Mail-Adresse.")
     if url := st.text_input("Geben Sie hier den Link zu Ihrem Customer-Chatbot ein:",placeholder="https://ragapplication-bkggtappynnyyzvyshq9mf7.streamlit.app/?token=YourToken"):
         if(validate_url(url)):
             parsed_url = urlparse(url)
