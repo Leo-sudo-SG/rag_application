@@ -20,10 +20,12 @@ import time
 import json
 
 PINECONE_API_KEY=os.environ['PINECONE_API_KEY']
+PINECONE_INDEX=os.environ['PINECONE_INDEX']
+PINECONE_NAMESPACE_LLM2=os.environ['PINECONE_NAMESPACE_LLM2']
 LANGCHAIN_TRACING_V2=os.environ['LANGCHAIN_TRACING_V2']
 LANGCHAIN_ENDPOINT=os.environ['LANGCHAIN_ENDPOINT']
 LANGCHAIN_API_KEY=os.environ['LANGCHAIN_API_KEY']
-LANGCHAIN_PROJECT=os.environ['LANGCHAIN_PROJECT']
+LANGCHAIN_PROJECT=os.environ['LANGCHAIN_PROJECT_LLM2']
 OPENAI_API_KEY=os.environ['OPENAI_API_KEY']
 
 key_dict = json.loads(st.secrets["textkey"])
@@ -56,11 +58,10 @@ if 'page' not in st.session_state:
     st.session_state.page = "page1"
 
 def load_retriever():
-    index_name = "llm"
     embedding=OpenAIEmbeddings()
-    vectorstore = PineconeVectorStore(index_name=index_name, embedding=embedding)
+    vectorstore = PineconeVectorStore(index_name=PINECONE_INDEX, embedding=embedding)
     retriever=vectorstore.as_retriever(
-    search_kwargs={"namespace":"llm2"}
+    search_kwargs={"namespace":PINECONE_NAMESPACE_LLM2,"k":2}
     )
 
     return retriever
@@ -68,8 +69,6 @@ def load_retriever():
 def create_prompt_template(det_product_info,product_info):
     
     prompt_template="""
-    Your name is "FragenFabrik".
-    
     Task:
     As a helpful AI interview bot, your task is to conduct a user interview with a potential user about a product/service. 
     You are a professional for user-centred development and user expirience interviews. Your goal is to generate new knowledge about users, their experiences, needs and weaknesses.
@@ -78,6 +77,7 @@ def create_prompt_template(det_product_info,product_info):
     You talk to a potential customer of the product/service.The information you collect will later be used for user-centred development of the product/service.
     Be careful not to ask questions twice or repeat yourself.
     First ask a few personal questions to be able to categorise the person in a group.
+    Use this personal information to guide the rest of the interview.
     Make the interview interactive and add meaningful questions, for that use your common knowledge and extend it with the given questions from a questionaire.
 
     Useful questions:
@@ -87,14 +87,18 @@ def create_prompt_template(det_product_info,product_info):
     If there is no suitable question, ask your own question. If an answer is very short or incomplete, ask a follow-up question. 
     The questions should not be asked all at once, but alternate with the user's answers.
     For answers that have nothing to do with the question asked, try to re-enter the interview with a new question. 
+    Only respond to enquiries that relate to your question and the context and do not provide information on other topics.
     Once all the questions have been asked, ask the product owner if they would like to add any further information and respond to their answer.
     At the end also point out that the interview can be concluded by entering "exit".
     If the user does not enter any further information, answer any further input with "Please type "exit" to finish the interview.".
     Only create a summary if exit has been entered by the user.
+    Create a pure summary without a salutation or closing sentence after 'exit' has been entered.
 
     Interview context:
-    As a context for your interview, you have a summary of an interview that was conducted with the product owner. Here you will find all the relevant information about the product that you should use to create the questions:\n
-    """+product_info+"\n"+"Here is some essential information about the interview and the product that you should definitely use:\n"+det_product_info+"\n"
+    As a context for your interview, you have a summary of an interview that was conducted with the product owner. 
+    You ignore details in the following information specified with "Keine Angabe".
+    Here you will find all the relevant information about the product that you should use to create the questions:\n
+    """+product_info+"\n"+"Here is some essential information about the interview and the product that you should definitely use:\n"+det_product_info
 
     return prompt_template
 
@@ -105,7 +109,7 @@ def split_response(response):
 
 
 def interview():
-    #email= load_email_from_db(c,st.session_state.chat_id)
+    
     retriever = load_retriever()
     msgs = StreamlitChatMessageHistory(key="langchain_messages")
 
@@ -150,7 +154,7 @@ def interview():
     )
 
     if len(msgs.messages)==0:
-        first_prompt="Write a welcome message and give brief instructions on what to do and what to expect. Also give a brief description of the product."
+        first_prompt="Please welcome me and give me brief instructions on what to do and what to expect. Also give me a brief description of the product. "
         config = {"configurable": {"session_id": st.session_state['client_id']}}
         #st.chat_message("ai").write(conversational_rag_chain.invoke({"input": first_prompt}, config)['answer'])
         response = conversational_rag_chain.invoke({"input": first_prompt}, config)['answer']
@@ -194,7 +198,7 @@ def page1():
     if 'client_id' not in st.session_state: #client_id -> id for potential customer 
         st.session_state.client_id=str(uuid.uuid4())
 
-    st.subheader("Willkommen in der FragenFabrik. Diese Anwendung wird Sie durch ein Interview über ein Produkt führen.")
+    st.subheader("Willkommen in der FragenFabrik. Diese Anwendung wird Sie durch ein Interview über ein Produkt oder eine Dienstleistung führen.")
     interview()
 
 def page2():

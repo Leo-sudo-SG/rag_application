@@ -58,6 +58,7 @@ def summarize(token):
     reduce_template = """The following is set of summaries:
     {docs}
     Take these and distill it into a final, consolidated summary of the main themes. 
+    Always write this summary in German.
     Helpful Answer:"""
     reduce_prompt = PromptTemplate.from_template(reduce_template)
 

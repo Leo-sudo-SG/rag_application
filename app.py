@@ -1,4 +1,4 @@
-
+ 
 from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
@@ -14,6 +14,7 @@ from firebase_admin import credentials, auth
 from google.cloud import firestore
 from google.oauth2 import service_account
 from database import register_user, save_info_to_db, save_chat_to_db,save_kmu_summary_to_db
+import auth_functions
 import streamlit as st
 import streamlit_authenticator as stauth
 import uuid
@@ -24,10 +25,12 @@ import firebase_admin
 import json
 
 PINECONE_API_KEY=os.environ['PINECONE_API_KEY']
+PINECONE_INDEX=os.environ['PINECONE_INDEX']
+PINECONE_NAMESPACE_LLM1=os.environ['PINECONE_NAMESPACE_LLM1']
 LANGCHAIN_TRACING_V2=os.environ['LANGCHAIN_TRACING_V2']
 LANGCHAIN_ENDPOINT=os.environ['LANGCHAIN_ENDPOINT']
 LANGCHAIN_API_KEY=os.environ['LANGCHAIN_API_KEY']
-LANGCHAIN_PROJECT=os.environ['LANGCHAIN_PROJECT']
+LANGCHAIN_PROJECT=os.environ['LANGCHAIN_PROJECT_LLM1']
 OPENAI_API_KEY=os.environ['OPENAI_API_KEY']
 
 
@@ -115,7 +118,9 @@ def agechange():
     st.session_state.age_values = ["ready"]
 
 def stage_conv(session_state):  
-                        if(session_state ==1):
+                        if (session_state==0):
+                             st.session_state.stage="Keine Angabe"
+                        elif(session_state ==1):
                             st.session_state.stage="Ideation"
                         elif(session_state ==2):
                             st.session_state.stage="Product Definition"
@@ -138,68 +143,43 @@ if 'page' not in st.session_state:
 def page1():
     st.title("Anmeldung")
 
-    def clicklogin():
-        try:
-            user = auth.get_user_by_email(email)
-            st.success(f"Successfully logged in as {user.email}")
-            st.session_state.page = "page2"
-            st.session_state.email=email
-        except auth.UserNotFoundError:
-            st.error("User not found or incorrect credentials")
+    if 'user_info' not in st.session_state:
+        col1,col2,col3 = st.columns([1,2,1])
 
-    email = st.text_input("Email", autocomplete="off")
-    password = st.text_input("Passwort", type="password")
-    col1, col2 = st.columns(2)
-    with col1: login_button = st.button("Melden Sie sich an.", on_click=clicklogin)
-    #with col2: 
-    st.subheader("**Neu hier?**")
-    st.write("Schön, dass Sie den Weg zu uns gefunden haben!")
-    
-    # Registrierung
-    def clickregister():
-        st.session_state.page = "signup_page"
+        # Authentication form layout
+        do_you_have_an_account = col2.selectbox(label='Haben Sie bereits einen Account?',options=('Ja','Nein','Ich habe mein Passwort vergessen'))
+        auth_form = col2.form(key='Authentication form',clear_on_submit=False)
+        email = auth_form.text_input(label='Email')
+        password = auth_form.text_input(label='Passwort',type='password') if do_you_have_an_account in {'Ja','Nein'} else auth_form.empty()
+        auth_notification = col2.empty()
 
-    # Anmeldung
-    signup_button = st.button("Registrieren Sie sich.", on_click=clickregister)
-# Function to sign up a user with email and password
-def sign_up_with_email_password(email, password):
-    try:
-        # Create user using Firebase Authentication
-        user = auth.create_user(email=email, password=password)
-        st.success(f"User wurde erfolgreich erstellt.")
-        return user
-    except Exception as e:
-        # Handle error if user creation fails
-        st.error(f"Fehler beim Erstellen des Users: {e}")
-        return None
+        # Sign In
+        if do_you_have_an_account == 'Ja' and auth_form.form_submit_button(label='Anmelden',use_container_width=True,type='primary'):
+            with auth_notification, st.spinner('Sie werden angemeldet'):
+                auth_functions.sign_in(email,password)
+                
 
-def signup_page():
-    st.title("Registrierung")
-    # Input fields for email, password, and confirm password
-    email = st.text_input("Email",autocomplete="off")
-    password = st.text_input("Passwort", type="password", placeholder="Wählen Sie mindestens sechs Zeichen für Ihr Passwort.")
-    confirm_password = st.text_input("Bestätigen Sie Ihr Passwort", type="password")
+        # Create Account
+        elif do_you_have_an_account == 'Nein' and auth_form.form_submit_button(label='Account erstellen',use_container_width=True,type='primary'):
+            with auth_notification, st.spinner('Account wird erstellt'):
+                auth_functions.create_account(email,password)
 
-    # zurück button
-    def clickback():
-        st.session_state.page = "page1"
+        # Password Reset
+        elif do_you_have_an_account == 'Ich habe mein Passwort vergessen' and auth_form.form_submit_button(label='E-Mail zum Zurücksetzen des Passworts senden',use_container_width=True,type='primary'):
+            with auth_notification, st.spinner('E-Mail wird zugeschickt'):
+                auth_functions.reset_password(email)
 
-    # Sign-up button
-    def clicksignup():
-        # Check if passwords match
-        if password != confirm_password:
-            st.error("Passwörter stimmen nicht überein.")
-        else:
-            # Call sign_up_with_email_password function
-            user = sign_up_with_email_password(email, password)
-            #st.session_state.email=email
-            if user:
-                # Additional logic after successful sign-up
-                pass
+        # Authentication success and warning messages
+        if 'auth_success' in st.session_state:
+            auth_notification.success(st.session_state.auth_success)
+            del st.session_state.auth_success
+        elif 'auth_warning' in st.session_state:
+            auth_notification.warning(st.session_state.auth_warning)
+            del st.session_state.auth_warning
 
-    col1, col2 = st.columns([0.15,0.85])
-    with col1: but_su = st.button("Sign Up", on_click=clicksignup)
-    with col2: but_zu = st.button("Zurück", on_click=clickback)
+    else:
+        st.session_state.page = "page2"
+        st.rerun()
 
          
 # Page 2 content
@@ -393,8 +373,8 @@ def page2():
                         with col5: st.write("Validation & Testing")
                         with col6: st.write("Commercialization")
                                 
-                        def clickstage():
-                            st.session_state.stage = stageslider
+                       #def clickstage():
+                            #st.session_state.stage = stageslider
                         
                         stageslider = st.slider(
                             label="Wir sind gerade in...",
@@ -409,40 +389,41 @@ def page2():
                                 "4) **Initial Design**: Die Projektbeteiligten arbeiten zusammen, um ein Mockup des Produkts basierend auf dem Prototyp des Minimum Viable Product (MVP) zu erstellen. Das Design sollte mit der Zielgruppe im Hinterkopf erstellt werden und die wichtigsten Funktionen Ihres Produkts ergänzen.\n"
                                 "5) **Validation & Testing**: Um mit einem neuen Produkt live zu gehen, müssen Sie es zuerst validieren und testen. Dies stellt sicher, dass jeder Teil des Produkts - von der Entwicklung bis zum Marketing - effektiv funktioniert, bevor es der Öffentlichkeit zugänglich gemacht wird.\n"
                                 "6) **Commercialization**: Nun ist es an der Zeit, Ihr Konzept zu kommerzialisieren, was den Start Ihres Produkts und die Implementierung auf Ihrer Website umfasst."
-                                    ),
-                            on_change=clickstage
+                                    )
+                            #on_change=clickstage
                         )
         
                         notsure5 = st.checkbox("Keine Angabe.", key="box5")
                         
                         if notsure5:
-                            st.session_state.stage = None
+                            st.session_state.stage = "Keine Angabe"
                             placeholder5.empty()
                             placeholder6.empty()
                             placeholder6a.empty()
                             #det_info['dev_status']='Keine Angabe'
 
                     # Show which phase they chose
-                    if st.session_state.stage != None:
+                    if st.session_state.stage != "Keine Angabe":
                         with st.chat_message("ai", avatar=":material/psychology:"):
-                                    if st.session_state.stage == 1: 
+                                    if st.session_state.current_stage == 1: 
                                         st.write("Super, Sie sind also gerade in der **Ideation** Phase.")
                                         #det_info['dev_status']="Ideation"
-                                    if st.session_state.stage == 2: 
+                                    if st.session_state.current_stage == 2: 
                                         st.write("Super, Sie sind also gerade in der **Product Definition** Phase.")
                                         #det_info['dev_status']="Product Definition"
-                                    if st.session_state.stage == 3: 
+                                    if st.session_state.current_stage == 3: 
                                         st.write("Super, Sie sind also gerade in der **Prototyping** Phase.")
                                         #det_info['dev_status']="Prototyping"
-                                    if st.session_state.stage == 4: 
+                                    if st.session_state.current_stage == 4: 
                                         st.write("Super, Sie sind also gerade in der **Initial Design** Phase.")
                                         #det_info['dev_status']="Initial Design"
-                                    if st.session_state.stage == 5: 
+                                    if st.session_state.current_stage == 5: 
                                         st.write("Super, Sie sind also gerade in der **Validation & Testing** Phase.")
                                         #det_info['dev_status']="Validation & Testing"
-                                    if st.session_state.stage == 6: 
+                                    if st.session_state.current_stage == 6: 
                                         st.write("Super, Sie sind also gerade in der **Commercialization** Phase.")
                                         #det_info['dev_status']="Commercialization"
+                                    st.session_state.stage=st.session_state.current_stage
 
                     placeholder7 = st.empty()
                     with placeholder7.container():
@@ -532,14 +513,18 @@ def page3():
             #Zielgruppe
                 if st.session_state.age_values[0] != "Keine Angabe.":
                         st.write("Ihre **Zielgruppe** ist zwischen "+str(st.session_state.age_values[0])+ " und "+str(st.session_state.age_values[1])+" Jahren alt.")
+                else: 
+                            st.write("Sie sind sich noch nicht über die Alterstruktur Ihrer **Zielgruppe** bewusst.")
+
+                if st.session_state.stage != "Keine Angabe":
                         if st.session_state.stage == 1: st.write("Sie sind gerade in der **Ideation** Phase.")
                         if st.session_state.stage == 2: st.write("Sie sind gerade in der **Product Definition** Phase.")
                         if st.session_state.stage == 3: st.write("Sie sind gerade in der **Prototyping** Phase.")
                         if st.session_state.stage == 4: st.write("Sie sind gerade in der **Initial Design** Phase.")
                         if st.session_state.stage == 5: st.write("Sie sind gerade in der **Validation & Testing** Phase.")
                         if st.session_state.stage == 6: st.write("Sie sind gerade in der **Commercialization** Phase.")
-                else: 
-                            st.write("Sie sind sich noch nicht über die Alterstruktur Ihrer **Zielgruppe** bewusst.")
+                else:
+                     st.write("Sie sind sich noch nicht sicher in welcher **Phase** Sie sich befinden.")
 
                 if st.session_state.service_or_product == "Ich weiss es noch nicht.":
                             st.write("Sie sind sich noch nicht darüber bewusst, ob es sich um ein Produkt oder eine Dienstleistung handelt.")
@@ -550,7 +535,7 @@ def page3():
                 
                 dauer = str(st.session_state.numberquestions * 6)
                 st.write("In Ihren Interviews werden **" +str(st.session_state.numberquestions)+" Fragen** gestellt werden.")
-                st.write("Damit werden diese voraussichtlich **"+ dauer +" Minuten** dauern.")
+                st.write("Damit wird das Kundeninterview voraussichtlich **"+ dauer +" Minuten** dauern.")
                 
                 st.write(f"Ihre Interviews werden in **{st.session_state.selected_language}** durchgeführt werden.")
 
@@ -573,154 +558,17 @@ def page3():
                                                         'num_ques':st.session_state.numberquestions,
                                                         'lang_ques':st.session_state.selected_language
                             }
-                     but_los = st.button("Weiter gehts!", key="aufgehts", on_click=clickgo)
+                     st.button("Weiter gehts!", key="aufgehts", on_click=clickgo)
+                     
                 
-                with col2: 
-                    def clickedit():
-                        st.session_state.page = "editinfos"
-                    but_edit = st.button("Ich möchte meine Daten noch einmal anpassen.", key="edit", on_click=clickedit)
-
-
-def editinfos():
-    st.title("Bearbeiten Sie Ihre Angaben.")
-    st.session_state.user = st.text_area("**Ihr Name**", value=st.session_state.user, height=20)
-    st.session_state.company = st.text_area("**Ihre Firma**", value=st.session_state.company, height=20)
-    st.session_state.name = st.text_area("**Ihr Produktname**", value=st.session_state.name, height=20)
-    # Development Stage
-    st.write("**Ihr momentaner Entwicklungsstand:**")
-    # Labels for the slider
-    # re convert stages in case you click "edit" twice
-    stage_helper = 1
-
-    if(st.session_state.stage =="Ideation"): stage_helper ==1
-    elif(st.session_state.stage == "Product Definition"): stage_helper ==2
-    elif(st.session_state.stage == "Prototyping"): stage_helper ==3
-    elif(st.session_state.stage == "Initial Design"): stage_helper ==4
-    elif(st.session_state.stage == "Validation & Testing"): stage_helper == 5
-    elif(st.session_state.stage == "Commercialization"): stage_helper == 6
-    elif(st.session_state.stage == "Not specified"): stage_helper == 0 # keine Angabe
-
-    beschriftungslider = st.container()
-    with beschriftungslider:
-        col1, col2, col3, col4, col5, col6 = st.columns(6)
-        with col1: st.write("Ideation")
-        with col2: st.write("Product Definition")
-        with col3: st.write("Prototyping")
-        with col4: st.write("Initial Design")
-        with col5: st.write("Validation & Testing")
-        with col6: st.write("Commercialization")
                 
-    def clickstage():
-        st.session_state.stage = stage
-        #currentstage = st.session_state.stage
-    
-    #currentstage = st.session_state.stage
-
-    if stage_helper != 0:
-        stage = st.slider(label="Wir sind gerade in...", min_value=1, max_value=6, value=stage_helper, key="edit_current_stage", step=1, help="1) Ideation \n 2) Product definition\n 3) Prototyping\n 4) Initial design\n 5) Validation and testing\n 6) Commercialization", on_change=clickstage)
-
-
-    indexsop = 0
-    if st.session_state.service_or_product == "Produkt": 
-        indexsop = 0
-    elif st.session_state.service_or_product == "Dienstleistung": 
-        indexsop = 1
-    else: indexsop = 2
-    
-    if st.session_state.name and st.session_state.name != "Keine Angabe.":
-                st.write("**Worum handelt es sich bei Ihrer Idee: Einem Produkt oder eine Dienstleistung?**")
-                produktname = st.session_state.name
-                st.session_state.service_or_product = st.radio(label=produktname+" ist ein:",options=["Produkt","Dienstleistung","Ich weiss es noch nicht."],index=indexsop)
-    # name kann nicht verwendet werden
-    elif st.session_state.name and st.session_state.name == "Keine Angabe.":
-                    st.write("**Worum handelt es sich bei Ihrer Idee: Einem Produkt oder eine Dienstleistung?**")
-                    produktname = st.session_state.name
-                    st.session_state.service_or_product = st.radio(label="Es ist ein:",options=["Produkt","Dienstleistung","Ich weiss es noch nicht."])
-    
-    if st.session_state.age_values[0] != "Keine Angabe.":
-        col3, col4 = st.columns(2)
-        with col3: 
-            st.session_state.age_values[0] = st.text_area("**Ihre Zielgruppe ist zwischen**", value=str(st.session_state.age_values[0]), height=20)
-        with col4:
-            st.session_state.age_values[1] = st.text_area("**und**", value=str(st.session_state.age_values[1]), height=20)
-
-    else:
-        st.write("Sie haben keine Angaben zur Alterstruktur Ihrer Zielgruppe gemacht. Möchten Sie dies ändern?")
-        
-        def clickchange():
-            col3, col4 = st.columns(2)
-            st.session_state.age_values[0] = 25
-            st.session_state.age_values.insert(1,75)
-            with col3: 
-                st.session_state.age_values[0] = st.text_area("**Ihre Zielgruppe ist zwischen**", value=str(st.session_state.age_values[0]), height=20, key="changeage")
-            with col4:
-                st.session_state.age_values[1] = st.text_area("**und**", value=str(st.session_state.age_values[1]), height=20, key="changeage2")
-        change = st.checkbox("Ja.", on_change=clickchange)
-        # Auswahl der Fragen
-        def clickeditnumberquestions():
-            st.session_state.numberquestions = numberquestions
-    
-        numberquestions = st.slider(
-
-                            label="**Anzahl Fragen**", 
-                            min_value=1,
-                            max_value=15,
-                            value=st.session_state.numberquestions,
-                            step=1,
-                            key="anzahlfragen",
-                            help=("In der Wissenschaft werden zwischen 5 und 10 Fragen empfohlen."),
-                            on_change=clickeditnumberquestions)
-
-                        
-    dauer = str(st.session_state.numberquestions*6)
-        # man kann pro Frage mit 6 min rechnen: https://sozmethode.hypotheses.org/132
-    st.write("Damit wird Ihr Interview in etwa "+ dauer + " Minuten dauern.")
-                        
-    st.write("Die Interviews werden auf **"+st.session_state.selected_language+"** durchgeführt werden.")
-
-        # Liste der häufigsten Sprachen in Europa, alphabetisch geordnet
-    languages = sorted([
-                            "Russisch", "Deutsch", "Französisch", "Englisch", "Italienisch", "Spanisch", "Ukrainisch", "Polnisch", "Rumänisch", "Niederländisch",
-                            "Griechisch", "Ungarisch", "Portugiesisch", "Tschechisch", "Schwedisch", "Bulgarisch", "Serbisch", "Kroatisch", "Slowakisch", "Dänisch",
-                            "Finnisch", "Norwegisch", "Litauisch", "Slowenisch", "Lettisch", "Estnisch", "Mazedonisch", "Albanisch", "Isländisch",
-                            "Irisch", "Maltesisch", "Bosnisch", "Walisisch", "Weißrussisch", "Katalanisch"
-                        ])
-
-        # Erstelle eine Auswahlbox
-    def clicklanguage():
-        st.session_state.selected_language = language
-
-    language = st.selectbox(
-                            "Die Interviews werden durchgeführt auf:",
-                            languages,
-                            index=languages.index(st.session_state.selected_language) if st.session_state.selected_language in languages else 0,
-                            on_change=clicklanguage
-
-                        )
-
-    def clicksubmit():
-        st.session_state.page = "page3"
-        stage_conv(st.session_state.stage)
-        if "det_info" not in st.session_state:
-            if st.session_state.age_values[0] != "Keine Angabe.":
-                target_group_helper = str(st.session_state.age_values[0])+"-"+str(st.session_state.age_values[1])
-            elif st.session_state.age_values[0] == "Keine Angabe.":
-                target_group_helper = "Keine Angabe."
-            st.session_state.det_info={ 'product_name':st.session_state.name,
-                                        'product_type':st.session_state.service_or_product,
-                                        'target_group':target_group_helper,
-                                        'dev_status':st.session_state.stage,
-                                        'num_ques':st.session_state.numberquestions,
-                                        'lang_ques':st.session_state.selected_language
-                                    }
-    submitinfos = st.button("Weiter gehts!", on_click = clicksubmit)           
+          
         
 def load_retriever():
-    index_name = "llm"
     embedding=OpenAIEmbeddings()
-    vectorstore = PineconeVectorStore(index_name=index_name, embedding=embedding)
+    vectorstore = PineconeVectorStore(index_name=PINECONE_INDEX, embedding=embedding)
     retriever=vectorstore.as_retriever(
-    search_kwargs={"namespace":"llm1_2", "k":2}
+    search_kwargs={"namespace":PINECONE_NAMESPACE_LLM1, "k":2}
     )
 
     return retriever
@@ -732,7 +580,7 @@ def generate_quest(llm_chain,user_input):
 
 
 def split_response(response):
-     for word in response.split():
+     for word in response.split(" "):
         yield word + " "
         time.sleep(0.06)
 
@@ -770,23 +618,26 @@ def create_prompt_template(det_info):
     You talk to a product owner who has an idea for a product or service that has not yet been developed.
     The information you collect will later be used for user research and in particular for the user-centred development of the product/service.
     Conduct the entire interview in German. Be careful not to ask questions twice or repeat yourself.
-    The questions should not be asked all at once, but alternate with the user's answers like in a real interview.
     Make the interview interactive and add meaningful questions, for that use your common knowledge and extend it with the given questions from a questionaire.
     
     Useful questions:
     {context}
 
     If there is no suitable question, ask your own question. If an answer is very short or incomplete, ask a follow-up question. 
-    For answers that have nothing to do with the question asked, try to re-enter the interview with a new question. 
+    The questions should not be asked all at once, but alternate with the user's answers.
+    For answers that have nothing to do with the question asked, try to re-enter the interview with a new question.
+    Only respond to enquiries that relate to your question and the context and do not provide information on other topics.
     End the interview after about 10-15 Questions.
     Once all the questions have been asked, ask the product owner if they would like to add any further information and respond to their answer.
     At the end also point out that the interview can be concluded by entering "exit".
     If the user does not enter any further information, answer any further input with "Please type "exit" to finish the interview.".
-    Only create a summary if exit has been entered by the user.
+    Only create a summary if 'exit' has been entered by the user.
+    Create a pure summary without a salutation or closing sentence after 'exit' has been entered. 
 
-    General porduct information:
-    Always use the following information of the product/service to ask suitable questions.
-    Product/Service information:
+    Interview context:
+    The product owner has already provided the following information about his product/service.
+    You ignore details in the following information specified with "Keine Angabe".
+    Allways use these to ask suitable questions:
     """.join(prompt_parts)
 
     return prompt_template
@@ -860,8 +711,8 @@ def interview():
         
         if "exit" in prompt:
             st.session_state.page="page5"
-            sum_prompt="Give me a summary over the interview."
-            st.session_state.sum_prompt=conversational_rag_chain.invoke({"input": sum_prompt}, config)['answer']
+            #sum_prompt="Give me a summary over the interview."
+            st.session_state.sum_prompt=conversational_rag_chain.invoke({"input": "exit"}, config)['answer']
             save_kmu_summary_to_db(db, st.session_state['chat_id'], st.session_state['sum_prompt'])
             st.rerun()
             
@@ -898,10 +749,13 @@ def page4():
 
 def page5():
     with st.container():
-        st.subheader("Zusammenfassung Ihres Interviews:")
-        link="[Chat-Bot]"+"("+generate_link()+")"
-        st.write("Klicken Sie hier um den Interview-Bot für Ihr Produkt aufzurufen:")
-        st.markdown(link, unsafe_allow_html=True)
+        link=generate_link()
+        st.markdown("## Link zum Customer-Chatbot:")
+        st.markdown("Rufen Sie hier Ihren korrespondierenden User-Chatbot auf:")
+        st.markdown("[Chat-Bot]"+"("+link+")", unsafe_allow_html=True)
+        st.markdown("Versenden Sie folgenden Link an Ihre potentiellen Kunden:")
+        st.code(link, language="python")
+        st.markdown("## Zusammenfassung Ihres Interviews:")
         st.markdown(st.session_state.sum_prompt)
 
 
@@ -916,7 +770,5 @@ elif st.session_state.page == "page4":
     page4()
 elif st.session_state.page == "page5":
      page5()
-elif st.session_state.page == "editinfos":
-    editinfos()
-elif st.session_state.page == "signup_page":
-    signup_page()
+
+
