@@ -434,6 +434,7 @@ def page2():
                             placeholder6.empty()
                             st.session_state.ready_interview = True
                             placeholder7.empty()
+                            st.rerun()
             
             if st.session_state.ready_interview == True:
                 with st.container():
@@ -658,7 +659,8 @@ def interview():
 
     model = ChatOpenAI(model_name="gpt-4o", temperature=0, streaming=True)
     contextualize_q_system_prompt="""Given a chat history and the latest user response
-    which might reference context in the chat history, formulate a possible follow-up question that can be understood without the chat history."""
+    which might reference context in the chat history, formulate a possible follow-up question that can be understood without the chat history.
+    Formulate this question allways in German."""
     contextualize_q_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", contextualize_q_system_prompt),
