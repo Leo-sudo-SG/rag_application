@@ -48,7 +48,8 @@ if not firebase_admin._apps:
 
 # Set title
 st.title("FragenFabrik")
-st.subheader("Willkommen in der FragenFabrik. Diese Anwendung wird Ihnen helfen, Interviews zu führen, und so Möglichkeiten für Ihre Idee zu erkunden.")
+st.subheader("Willkommen in der FragenFabrik! Diese App hilft Ihnen, Kundeninterviews durchzuführen und wertvolle Einblicke für die nutzerzentrierte Entwicklung Ihrer Ideen zu gewinnen.")
+st.markdown("Erstellen Sie ihren individuellen Interview-Bot in nur **10 Minuten**")
 
 #tab1, tab2 = st.tabs(["Beantworten Sie einige Fragen über Ihre Idee.", "Überprüfen Sie Ihre Angaben."])
 
@@ -739,7 +740,7 @@ def interview():
     
 
 def page4():
-    st.subheader("Wilkommen zum Chatbot!")
+    st.subheader("Willkommen zum Chatbot!")
     # Generate a unique chat ID for each session
     if 'chat_id' not in st.session_state:
         st.session_state.chat_id = str(uuid.uuid4())
