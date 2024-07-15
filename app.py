@@ -49,7 +49,7 @@ if not firebase_admin._apps:
 # Set title
 st.title("FragenFabrik")
 st.subheader("Willkommen in der FragenFabrik! Diese App hilft Ihnen, Kundeninterviews durchzuführen und wertvolle Einblicke für die nutzerzentrierte Entwicklung Ihrer Ideen zu gewinnen.")
-st.markdown("Erstellen Sie ihren individuellen Interview-Bot in nur **10 Minuten**")
+st.markdown("Erstellen Sie Ihren individuellen Interview-Bot in nur **10 Minuten**")
 
 #tab1, tab2 = st.tabs(["Beantworten Sie einige Fragen über Ihre Idee.", "Überprüfen Sie Ihre Angaben."])
 
