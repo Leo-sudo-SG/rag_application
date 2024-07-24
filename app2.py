@@ -105,7 +105,7 @@ def create_prompt_template(det_product_info,product_info):
     return prompt_template
 
 def split_response(response):
-     for word in response.split():
+     for word in response.split(" "):
         yield word + " "
         time.sleep(0.06)
 
