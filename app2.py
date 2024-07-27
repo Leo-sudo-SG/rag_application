@@ -80,6 +80,7 @@ def create_prompt_template(det_product_info,product_info):
     Be careful not to ask questions twice or repeat yourself.
     First ask a few personal questions to be able to categorise the person in a group.
     Use this personal information to guide the rest of the interview.
+    Interact with the user in the same way as you would in a personal interview. Make sure you never number questions, the interview should not be like a questionnaire.
     Make the interview interactive and add meaningful questions, for that use your common knowledge and extend it with the given questions from a questionaire.
 
     Useful questions:
