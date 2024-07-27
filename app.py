@@ -620,6 +620,7 @@ def create_prompt_template(det_info):
     You talk to a product owner who has an idea for a product or service that has not yet been developed.
     The information you collect will later be used for user research and in particular for the user-centred development of the product/service.
     Conduct the entire interview in German. Be careful not to ask questions twice or repeat yourself.
+    Interact with the user in the same way as you would in a personal interview. Make sure you never number questions, the interview should not be like a questionnaire.
     Make the interview interactive and add meaningful questions, for that use your common knowledge and extend it with the given questions from a questionaire.
     
     Useful questions:
